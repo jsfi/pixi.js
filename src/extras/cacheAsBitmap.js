@@ -167,42 +167,46 @@ DisplayObject.prototype._initCachedDisplayObject = function _initCachedDisplayOb
     // TODO pass an object to clone too? saves having to create a new one each time!
     const bounds = this.getLocalBounds().clone();
 
-    // add some padding!
-    if (this._filters)
+    let renderTexture = null;
+
+    if (bounds.width > 0 || bounds.height > 0)
     {
-        const padding = this._filters[0].padding;
+        // add some padding!
+        if (this._filters) {
+            const padding = this._filters[0].padding;
 
-        bounds.pad(padding);
+            bounds.pad(padding);
+        }
+
+        // for now we cache the current renderTarget that the webGL renderer is currently using.
+        // this could be more elegent..
+        const cachedRenderTarget = renderer._activeRenderTarget;
+        // We also store the filter stack - I will definitely look to change how this works a little later down the line.
+        const stack = renderer.filterManager.filterStack;
+
+        // this renderTexture will be used to store the cached DisplayObject
+
+        renderTexture = core.RenderTexture.create(bounds.width | 0, bounds.height | 0);
+
+        // need to set //
+        const m = _tempMatrix;
+
+        m.tx = -bounds.x;
+        m.ty = -bounds.y;
+
+        // reset
+        this.transform.worldTransform.identity();
+
+        // set all properties to there original so we can render to a texture
+        this.renderWebGL = this._cacheData.originalRenderWebGL;
+
+        renderer.render(this, renderTexture, true, m, true);
+        // now restore the state be setting the new properties
+
+        renderer.bindRenderTarget(cachedRenderTarget);
+
+        renderer.filterManager.filterStack = stack;
     }
-
-    // for now we cache the current renderTarget that the webGL renderer is currently using.
-    // this could be more elegent..
-    const cachedRenderTarget = renderer._activeRenderTarget;
-    // We also store the filter stack - I will definitely look to change how this works a little later down the line.
-    const stack = renderer.filterManager.filterStack;
-
-    // this renderTexture will be used to store the cached DisplayObject
-
-    const renderTexture = core.RenderTexture.create(bounds.width | 0, bounds.height | 0);
-
-    // need to set //
-    const m = _tempMatrix;
-
-    m.tx = -bounds.x;
-    m.ty = -bounds.y;
-
-    // reset
-    this.transform.worldTransform.identity();
-
-    // set all properties to there original so we can render to a texture
-    this.renderWebGL = this._cacheData.originalRenderWebGL;
-
-    renderer.render(this, renderTexture, true, m, true);
-    // now restore the state be setting the new properties
-
-    renderer.bindRenderTarget(cachedRenderTarget);
-
-    renderer.filterManager.filterStack = stack;
 
     this.renderWebGL = this._renderCachedWebGL;
     this.updateTransform = this.displayObjectUpdateTransform;
